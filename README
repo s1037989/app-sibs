@@ -1,0 +1,22 @@
+NAME
+    App::sibs - Simple incremental backup system
+
+VERSION
+    0.01
+
+SYNOPSIS
+      $ sibs;
+      $ sibs setup;
+      $ sibs run;
+
+DESCRIPTION
+    "sibs" create backups from your source system to a destination server,
+    using "rsync".
+
+COPYRIGHT
+    This program is free software, you can redistribute it and/or modify it
+    under the terms of the Artistic License version 2.0.
+
+AUTHOR
+    Jan Henning Thorsen - "jhthorsen@cpan.org"
+

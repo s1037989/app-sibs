@@ -1,0 +1,23 @@
+#!/usr/bin/perl
+use Applify;
+
+extends 'App::sibs';
+documentation 'App::sibs';
+version 'App::sibs';
+
+app {
+  my $self = shift;
+  my $action = shift || 'help';
+
+  if($action eq 'run') {
+    $self->backup(@_);
+  }
+  elsif($action eq 'setup') {
+    $self->setup(@_);
+  }
+  else {
+    $self->_script->print_help;
+  }
+
+  return 0;
+};
