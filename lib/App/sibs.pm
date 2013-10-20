@@ -30,7 +30,6 @@ to be a hash with the config. Example:
     exclude => [qw( .cache .gvfs Downloads Dropbox Trash )],
     source => [qw( /home/username )],
     destination => "rsync://login-username@my.server.com/var/backup/username",
-    keep => { hours => 5, days => 10 },
   }
 
 Defaults:
@@ -40,8 +39,6 @@ Defaults:
 =item * exclude: .cache, .gvfs, Downloads, Dropbox, Trash
 
 =item * source: C<$HOME>
-
-=item * keep: hours=12, days=31
 
 =back
 
