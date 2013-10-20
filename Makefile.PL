@@ -6,7 +6,7 @@ WriteMakefile(
   AUTHOR => 'Jan Henning Thorsen <jhthorsen@cpan.org>',
   LICENSE => 'perl',
   PREREQ_PM => {
-    'Applify' => 0.0501,
+    'File::Rsync' => '0.43',
   },
   BUILD_REQUIRES => {
     'Test::More' => 0.90,
@@ -16,11 +16,12 @@ WriteMakefile(
       license => 'http://dev.perl.org/licenses/',
       homepage => 'https://metacpan.org/release/App-sibs',
       bugtracker => 'http://rt.cpan.org/NoAuth/Bugs.html?Dist=App-sibs',
-      repository => 'http://github.com/jhthorsen/app-sibs',
+      repository => 'https://github.com/jhthorsen/app-sibs',
     },
   },
   test => {
     TESTS => 't/*.t',
   },
   EXE_FILES => ['bin/sibs'],
+  MIN_PERL_VERSION => '5.010',
 );

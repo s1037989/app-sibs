@@ -19,27 +19,37 @@ App::sibs - Simple incremental backup system
 C<sibs> create backups from your source system to a destination server, using
 C<rsync>.
 
+=head1 CONFIG FILE
+
+The config file is in perl format, and read by perl. This means that any perl
+code that exists in the file will be evaluated by perl. The return value need
+to be a hash with the config. Example:
+
+  {
+    email => "your@email.com",
+    exclude => [qw( .cache .gvfs Downloads Dropbox Trash )],
+    source => [qw( /home/username )],
+    destination => "rsync://login-username@my.server.com/var/backup/username",
+    keep => { hours => 5, days => 10 },
+  }
+
+Defaults:
+
+=over 4
+
+=item * exclude: .cache, .gvfs, Downloads, Dropbox, Trash
+
+=item * source: C<$HOME>
+
+=item * keep: hours=12, days=31
+
+=back
+
+Default C<exclude> may change in future release.
+
 =cut
 
 our $VERSION = '0.01';
-
-=head1 METHODS
-
-=head2 backup
-
-=cut
-
-sub backup {
-  my $self = shift;
-}
-
-=head2 setup
-
-=cut
-
-sub setup {
-  my $self = shift;
-}
 
 =head1 COPYRIGHT
 

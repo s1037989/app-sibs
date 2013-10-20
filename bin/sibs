@@ -1,23 +1,242 @@
 #!/usr/bin/perl
-use Applify;
+use strict;
+use warnings;
+use Fcntl ':flock';
+use URI;
 
-extends 'App::sibs';
-documentation 'App::sibs';
-version 'App::sibs';
+our @DEFAULT_EXCLUDE = qw( .cache .gvfs Downloads Dropbox Trash );
+our $HOME = $ENV{HOME} || 'ENVIRONMENT_HOME_IS_NOT_SET';
 
-app {
+#=============================================================================
+# backup
+sub rsync {
+  my $self = shift;
+
+  require File::Rsync;
+  $self->{rsync} ||= File::Rsync->new({
+    archive => 1,
+    compress => 1,
+    delete_after => 1,
+    numeric_ids => 1,
+    relative => 1,
+    verbose => $ENV{VERBOSE} ? 1 : 0,
+    exclude => $self->{exclude},
+    source => $self->{source},
+    destination => sprintf('%s:%s/incoming', $self->destination, $self->{destination}->path),
+  });
+}
+
+sub remote_cleanup {
+  my $self = shift;
+  my $path = $self->{destination}->path;
+  my @remote = ( ssh => $self->destination, qq(perl - remote-cleanup $path) );
+
+  open my $SSH, '|-', @remote or die "Cannot start remote-cleanup: $!";
+  open my $SELF, '<', __FILE__ or die "Cannot read $0: $!";
+  print $SSH $_ while <$SELF>;
+  close $SSH;
+}
+
+#=============================================================================
+# setup
+sub create_config {
+  my $self = shift;
+  my $tmp = sprintf '%s.tmp', $self->{config};
+
+  warn $@ || "--- Creating '$self->{config}' from user input...\n";
+
+  local $_;
+  open my $CONFIG, '>', $tmp or die "Cannot write $tmp: $!\n";
+
+  print $CONFIG "{\n";
+  printf $CONFIG "  email => '%s',\n", $_ if $self->_read('email');
+  printf $CONFIG "  exclude => [qw( %s )],\n", $_ if $self->_read('exclude');
+  printf $CONFIG "  source => [qw( %s )],\n", $_ if $self->_read('source');
+  printf $CONFIG "  destination => '%s',\n", $_ if $self->_read('destination');
+  print $CONFIG "}\n";
+
+  close $CONFIG or die "Could not write '$tmp': $!\n";
+  rename $tmp, $self->{config} or die "Could not write '$self->{config}: $!'\n";
+}
+
+sub create_identity_file {
+  my $self = shift;
+  my $file = $self->ssh_file('identity');
+  my @remote = ( ssh => $self->destination, qq(perl - init-remote-host) );
+
+  if(-r $file) {
+    warn "--- Identity file '$file' exists\n";
+  }
+  else {
+    warn "--- Creating $file with empty password using ssh-keygen ...\n";
+    system 'ssh-keygen' => -P => '', -t => 'dsa', -f => $file;
+  }
+
+  open my $SSH, '|-', @remote or die "Cannot start init-remote-host: $!";
+  open my $SELF, '<', __FILE__ or die "Cannot read $0: $!";
+  open my $IDENTITY, '<', $self->ssh_file('identity.pub') or die "Cannot read identity.pub: $!";
+  print $SSH $_ while <$SELF>;
+  print $SSH "\n__DATA__\n";
+  print $SSH $_ while <$IDENTITY>;
+  close $SSH;
+  warn "--- Add to remote authorized_keys: @{[ $! || 'Success' ]}\n";
+}
+
+sub create_ssh_config {
+  my $self = shift;
+  my $host = $self->{destination}->host;
+  my $moniker = $self->host_to_moniker;
+  my $file = $self->ssh_file('config');
+
+  if(-r $file) {
+    open my $CONFIG, '<', $file or die "Could not open $file: $!";
+    while(<$CONFIG>) {
+      next unless /Host\s+$moniker/;
+      warn "--- Host $moniker file exists in $file.\n";
+      return 1;
+    }
+  }
+
+  warn "--- Adding $moniker to $file\n";
+  open my $CONFIG, '>>', $file or die "Cannot write to $file: $!";
+  printf $CONFIG "\nHost %s\n", $self->host_to_moniker;
+  printf $CONFIG "  Hostname %s\n", $host;
+  printf $CONFIG "  IdentityFile %s\n", $self->ssh_file('identity');
+  close $CONFIG;
+}
+
+#=============================================================================
+# remote methods
+sub add_authorized_key {
+  my($self, $key) = @_;
+  my $file = $self->ssh_file('authorized_keys');
+
+  if(-r $file) {
+    my $match = quotemeta $key;
+    open my $AUTHORIZED_KEYS, '<', $file or die "Could not open $file: $!";
+    while(<$AUTHORIZED_KEYS>) {
+      next unless /$match/;
+      warn "--- Remote authorized_keys contains key\n";
+      return 1;
+    }
+  }
+
+  open my $AUTHORIZED_KEYS, '>>', $file or die "Could not append to $file: $!\n";
+  print $AUTHORIZED_KEYS $key;
+  print $AUTHORIZED_KEYS "\n" unless $key =~ /\n$/;
+  close $AUTHORIZED_KEYS;
+  warn "--- Add client key to remote authorized_keys.\n";
+}
+
+sub cleanup {
+  my($self, $dir) = @_;
+  my $hour = (localtime)[2];
+  my $mday = (localtime)[3];
+
+  chdir $dir or die "Cannot chdir $dir: $!\n";
+  system cp => "-al" => "incoming" => "$mday-$hour";
+}
+
+#=============================================================================
+# utilities
+sub destination {
+  my $self = shift;
+  sprintf '%s@%s', $self->{destination}->userinfo, $self->{destination}->host;
+}
+
+sub host_to_moniker {
+  my $self = shift;
+  my $moniker = 'sibs-' .$self->{destination}->host;
+
+  $moniker =~ s/\./-/g;
+  $moniker;
+}
+
+sub load_config {
+  my $self = shift;
+  my $config;
+
+  open my $CONFIG, '<', $self->{config} or die "Cannot read $self->{config}: $! Run '$0 setup'\n";
+  $config = join '', <$CONFIG>;
+  $config = eval <<"  CONFIG";
+    use strict;
+    use warnings;
+    use File::Basename;
+    $config
+  CONFIG
+
+  $config or die "Invalid config file: ($@)\n";
+  $config->{exclude} ||= [ @DEFAULT_EXCLUDE ];
+  $config->{source} ||= [ $HOME ];
+  $config->{destination} = URI->new($config->{destination} || '');
+
+  @{$self}{keys %$config} = values %$config;
+
+  for my $m (qw( scheme host path userinfo )) {
+    next if $config->{destination}->$m;
+    die "[$self->{config}] Missing '$m' part for 'destination' URI\n";
+  }
+
+  $config->{destination}->scheme eq 'rsync' or die "[$self->{config}] Only rsync:// is supported for 'destination' URI\n";
+}
+
+sub ssh_file {
+  my($self, $file) = @_;
+  $file =~ s/^identity/sibs_rsa/;
+  return "$HOME/.ssh/$file";
+}
+
+sub _read {
+  my($self, $k) = @_;
+  my $v = $self->{$k};
+  $v = join ' ', @$v if ref $v eq 'ARRAY';
+  local $| = 1;
+  print $k;
+  printf " ($v)", if $v;
+  print ": ";
+  $_ = <STDIN>;
+  chomp;
+  $_ ||= $v;
+}
+
+sub run {
   my $self = shift;
   my $action = shift || 'help';
 
-  if($action eq 'run') {
-    $self->backup(@_);
+  $self->{config} ||= "$HOME/.sibs.conf";
+
+  if($action eq 'setup') {
+    $self->create_config until eval { $self->load_config };
+    warn "--- Created $self->{config}\n";
+    mkdir "$HOME/.ssh" or die "Could not mkdir ~/.ssh: $!" unless -d "$HOME/.ssh";
+    $self->create_ssh_config;
+    $self->create_identity_file;
   }
-  elsif($action eq 'setup') {
-    $self->setup(@_);
+  elsif($action eq 'backup') {
+    my $reader = sub { print $_[0] };
+    $self->load_config;
+    $self->rsync->exec(outfun => $reader, errfun => $reader) or die $self->rsync->err;
+    $self->remote_cleanup;
+  }
+  elsif($action eq 'man') {
+    exec perldoc => 'App::sibs';
+  }
+  elsif($action eq 'init-remote-host') {
+    $self->add_authorized_key(eval 'do { local $/; <DATA> }');
+  }
+  elsif($action eq 'remote-cleanup') {
+    $self->cleanup(@_);
   }
   else {
-    $self->_script->print_help;
+    print <<'    HELP';
+    sibs man
+    sibs setup
+    sibs backup
+    HELP
   }
 
   return 0;
-};
+}
+
+exit +(bless {})->run(@ARGV) unless defined wantarray;
+bless {};
