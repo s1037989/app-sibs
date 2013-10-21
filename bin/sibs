@@ -7,30 +7,17 @@ use URI;
 our @DEFAULT_EXCLUDE = qw( .cache .cpanm .gvfs Downloads Dropbox Trash );
 our $HOME = $ENV{HOME} || 'ENVIRONMENT_HOME_IS_NOT_SET';
 
-sub rsync {
+sub run_rsync {
   my $self = shift;
-  my $reader = sub { local $| = 1; printf "[%s] %s", $_[1], $_[0] };
-  my($rsync, @verbose);
+  my $uri = $self->{destination};
+  my @options = qw( -az --delete-after --numeric-ids --relative );
 
-  if($ENV{VERBOSE}) {
-    @verbose = ( verbose => 1, outfun => $reader, errfun => $reader );
-  }
+  push @options, map { qq(--exclude=$_) } @{ $self->{exclude} || [] };
+  push @options, '--verbose' if $ENV{VERBOSE};
+  push @options, @{ $self->{source} };
+  push @options, sprintf '%s@%s:%s/incoming', $uri->userinfo, $self->remote_host, $uri->path;
 
-  require File::Rsync;
-  $rsync = File::Rsync->new({
-    archive => 1,
-    compress => 1,
-    delete_after => 1,
-    numeric_ids => 1,
-    relative => 1,
-    exclude => $self->{exclude},
-    source => $self->{source},
-    destination => sprintf('%s@%s:%s/incoming', $self->{destination}->userinfo, $self->remote_host, $self->{destination}->path),
-    @verbose,
-  });
-
-  warn '--- ', join(' ', @{ $rsync->getcmd }), "\n";
-  $rsync;
+  $self->_system(rsync => @options);
 }
 
 sub create_sibs_config {
@@ -84,7 +71,7 @@ sub create_identity_file {
   }
   else {
     warn "--- Creating $file with empty password using ssh-keygen ...\n";
-    system 'ssh-keygen' => -P => '', -t => 'dsa', -f => $file;
+    $self->_system('ssh-keygen' => -P => '', -t => 'dsa', -f => $file);
   }
 
   warn "--- Copying pub key to remote host ...\n";
@@ -185,6 +172,19 @@ sub _read {
   $_ ||= $v;
 }
 
+sub _system {
+  my($self, $program, @options) = @_;
+
+  for my $path (qw( /bin /usr/bin /usr/local/bin )) {
+    next unless -x "$path/$program";
+    $program = "$path/$program";
+    last;
+  }
+
+  warn "--- $program @options\n";
+  system $program => @options;
+}
+
 sub run {
   my $self = shift;
   my $action = shift || 'help';
@@ -202,8 +202,7 @@ sub run {
   }
   elsif($action eq 'backup') {
     $self->load_config;
-    my $rsync = $self->rsync;
-    $rsync->exec or die "--- rsync failed: ", @{ $rsync->err || $rsync->out };
+    $self->run_rsync;
     $self->run_sibs_remote('remote-archive', $self->{destination}->path);
   }
   elsif($action eq 'man') {
@@ -217,8 +216,7 @@ sub run {
     my $hour = (localtime)[2];
     my $mday = (localtime)[3];
     chdir $dir or die "Cannot chdir $dir: $!\n";
-    warn "--- Archiving backup to $mday-$hour\n";
-    system cp => "-al" => "incoming" => "$mday-$hour";
+    $self->_system(cp => "-al" => "incoming" => "$mday-$hour");
   }
   else {
     print <<'    HELP';

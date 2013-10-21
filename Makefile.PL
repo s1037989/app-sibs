@@ -6,7 +6,6 @@ WriteMakefile(
   AUTHOR => 'Jan Henning Thorsen <jhthorsen@cpan.org>',
   LICENSE => 'perl',
   PREREQ_PM => {
-    'File::Rsync' => '0.43',
   },
   BUILD_REQUIRES => {
     'Test::More' => 0.90,
