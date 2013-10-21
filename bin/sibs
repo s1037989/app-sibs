@@ -213,7 +213,7 @@ sub run {
     $self->create_identity_file;
   }
   elsif($action eq 'backup') {
-    my $reader = sub { print $_[0] };
+    my $reader = sub { local $| = 1; print $_[0] };
     $self->load_config;
     $self->rsync->exec(outfun => $reader, errfun => $reader) or die $self->rsync->err;
     $self->remote_cleanup;
