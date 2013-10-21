@@ -1,15 +1,21 @@
 #!/usr/bin/perl
 use strict;
 use warnings;
-use Fcntl ':flock';
+use Fcntl qw( O_CREAT O_EXCL );
 use URI;
 
 our @DEFAULT_EXCLUDE = qw( .cache .cpanm .gvfs Downloads Dropbox Trash );
 our $HOME = $ENV{HOME} || 'ENVIRONMENT_HOME_IS_NOT_SET';
+our $LOCK;
+
+END {
+  unlink $LOCK if $LOCK;
+}
 
 sub run_rsync {
   my $self = shift;
   my $uri = $self->{destination};
+  my $lock = sprintf '%s.backup.lock', $self->{config};
   my @options = qw( -az --delete-after --numeric-ids --relative );
 
   push @options, map { qq(--exclude=$_) } @{ $self->{exclude} || [] };
@@ -17,6 +23,8 @@ sub run_rsync {
   push @options, @{ $self->{source} };
   push @options, sprintf '%s@%s:%s/incoming', $uri->userinfo, $self->remote_host, $uri->path;
 
+  IO::File->new->open($lock, O_CREAT | O_EXCL) or die "Already backing up. ($lock)\n";
+  $LOCK = $lock;
   $self->_system(rsync => @options);
 }
 
