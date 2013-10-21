@@ -13,7 +13,7 @@ sub run_rsync {
   my @options = qw( -az --delete-after --numeric-ids --relative );
 
   push @options, map { qq(--exclude=$_) } @{ $self->{exclude} || [] };
-  push @options, '--verbose' if $ENV{VERBOSE};
+  push @options, '--verbose' if $self->{verbose};
   push @options, @{ $self->{source} };
   push @options, sprintf '%s@%s:%s/incoming', $uri->userinfo, $self->remote_host, $uri->path;
 
@@ -186,10 +186,15 @@ sub _system {
 }
 
 sub run {
-  my $self = shift;
-  my $action = shift || 'help';
-  my $rsync;
+  my($self, @args) = @_;
+  my $action = 'help';
 
+  for my $i (0..@args-1) {
+    $self->{config} = splice @args, $i, 1, () if -f $args[$i];
+    $self->{verbose} = splice @args, $i, 1, () if $args[$i] =~ /^-?-v/;
+  }
+
+  $action = shift @args if @args;
   $self->{config} ||= "$HOME/.sibs.conf";
 
   if($action eq 'setup') {
