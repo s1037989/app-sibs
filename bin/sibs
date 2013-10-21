@@ -230,7 +230,7 @@ sub run {
     $self->remote_add_pub_key(eval 'do { local $/; <DATA> }');
   }
   elsif($action eq 'remote-archive') {
-    my $dir = shift @_;
+    my $dir = shift @args;
     my $hour = (localtime)[2];
     my $mday = (localtime)[3];
     chdir $dir or die "Cannot chdir $dir: $!\n";
