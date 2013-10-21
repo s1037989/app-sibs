@@ -26,7 +26,7 @@ sub create_sibs_config {
 
   open my $CONFIG, '>', $tmp or die "Cannot write $tmp: $!\n";
   local $_;
-  warn $@ || "--- Creating '$self->{config}' from user input...\n";
+  $self->_log($@ || "Creating '$self->{config}' from user input...");
 
   print $CONFIG "{\n";
   printf $CONFIG "  email => '%s',\n", $_ if $self->_read('email');
@@ -48,12 +48,12 @@ sub add_backup_host_to_ssh_config {
     open my $CONFIG, '<', $file or die "Could not open $file: $!";
     while(<$CONFIG>) {
       next unless /Host\s+$moniker/;
-      warn "--- Host $moniker exists in $file.\n";
+      $self->_log("Host $moniker exists in $file.");
       return 1;
     }
   }
 
-  warn "--- Adding $moniker to $file\n";
+  $self->_log("Adding $moniker to $file");
   open my $CONFIG, '>>', $file or die "Cannot write to $file: $!";
   printf $CONFIG "\nHost %s\n", $self->remote_host;
   printf $CONFIG "  Hostname %s\n", $self->{destination}->host;
@@ -67,14 +67,14 @@ sub create_identity_file {
   my $identity;
 
   if(-r $file) {
-    warn "--- Identity file '$file' exists\n";
+    $self->_log("Identity file '$file' exists");
   }
   else {
-    warn "--- Creating $file with empty password using ssh-keygen ...\n";
+    $self->_log("Creating $file with empty password using ssh-keygen ...");
     $self->_system('ssh-keygen' => -P => '', -t => 'dsa', -f => $file);
   }
 
-  warn "--- Copying pub key to remote host ...\n";
+  $self->_log("Copying pub key to remote host ...");
   open my $IDENTITY, '<', "$file.pub" or die "Cannot read $file.pub: $!";
   $self->run_sibs_remote(sub { readline $IDENTITY }, 'remote-init');
 }
@@ -88,7 +88,7 @@ sub remote_add_pub_key {
     open my $AUTHORIZED_KEYS, '<', $file or die "Could not open $file: $!";
     while(<$AUTHORIZED_KEYS>) {
       next unless /$match/;
-      warn "--- Remote authorized_keys contains pub key\n";
+      $self->_log("Remote host has pub key");
       return 0;
     }
   }
@@ -97,7 +97,7 @@ sub remote_add_pub_key {
   print $AUTHORIZED_KEYS $key;
   print $AUTHORIZED_KEYS "\n" unless $key =~ /\n$/;
   close $AUTHORIZED_KEYS;
-  warn "--- Pub key added to remote authorized_keys.\n";
+  $self->_log("Pub key added to remote authorized_keys.");
   return 1;
 }
 
@@ -140,10 +140,11 @@ sub load_config {
 sub run_sibs_remote {
   my($self, @args) = @_;
   my $stdin = ref $args[0] eq 'CODE' ? shift @args : sub { '' };
-  my @remote = (
-    ssh => sprintf('%s@%s', $self->{destination}->userinfo, $self->remote_host),
-    qq(perl - @args),
-  );
+  my @remote = ( ssh => sprintf('%s@%s', $self->{destination}->userinfo, $self->remote_host) );
+
+  unshift @args, '--silent' if $self->{silent};
+  unshift @args, '--verbose' if $self->{verbose};
+  push @remote, qq(perl - @args);
 
   open my $SSH, '|-', @remote or die "Cannot start 'sibs @args' remote: $!";
   open my $SELF, '<', __FILE__ or die "Cannot read $0: $!";
@@ -157,6 +158,15 @@ sub ssh_file {
   my($self, $file) = @_;
   return "$HOME/.ssh" unless $file;
   return "$HOME/.ssh/$file";
+}
+
+sub _log {
+  my $self = shift;
+  my $min = (localtime)[1];
+  my $hour = (localtime)[2];
+
+  return if $self->{silent};
+  warn sprintf "[%02s:%02s] %s\n", $hour, $min, join ' ', @_;
 }
 
 sub _read {
@@ -181,17 +191,20 @@ sub _system {
     last;
   }
 
-  warn "--- $program @options\n";
+  $self->_log("$program @options");
   system $program => @options;
 }
 
 sub run {
   my($self, @args) = @_;
   my $action = 'help';
+  my $i = 0;
 
-  for my $i (0..@args-1) {
+  while($i < @args) {
     $self->{config} = splice @args, $i, 1, () if -f $args[$i];
     $self->{verbose} = splice @args, $i, 1, () if $args[$i] =~ /^-?-v/;
+    $self->{silent} = splice @args, $i, 1, () if $args[$i] =~ /^-?-s/;
+    $i++;
   }
 
   $action = shift @args if @args;
@@ -199,7 +212,7 @@ sub run {
 
   if($action eq 'setup') {
     $self->create_sibs_config until eval { $self->load_config };
-    warn "--- Created $self->{config}\n";
+    $self->_log("Created $self->{config}");
     mkdir $self->ssh_file or die "Could not mkdir ~/.ssh: $!" unless -d $self->ssh_file;
     chmod 0700, $self->ssh_file;
     $self->add_backup_host_to_ssh_config;

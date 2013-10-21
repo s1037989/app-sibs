@@ -16,7 +16,7 @@ App::sibs - Simple incremental backup system
 
 =head1 DESCRIPTION
 
-C<sibs> create backups from your source system to a destination server, using
+C<sibs> create backups from your computer to a destination server, using
 C<rsync>.
 
 =head1 CONFIG FILE
