@@ -11,19 +11,34 @@ our $HOME = $ENV{HOME} || 'ENVIRONMENT_HOME_IS_NOT_SET';
 # backup
 sub rsync {
   my $self = shift;
+  my $reader = sub { local $| = 1; printf "[%s] %s", $_[1], $_[0] };
+  my($rsync, @verbose);
+
+  $self->load_config;
+
+  if($ENV{VERBOSE}) {
+    @verbose = (
+      verbose => 1,
+      outfun => $reader,
+      errfun => $reader,
+    );
+  }
 
   require File::Rsync;
-  $self->{rsync} ||= File::Rsync->new({
+  $rsync = File::Rsync->new({
     archive => 1,
     compress => 1,
     delete_after => 1,
     numeric_ids => 1,
     relative => 1,
-    verbose => $ENV{VERBOSE} ? 1 : 0,
     exclude => $self->{exclude},
     source => $self->{source},
     destination => sprintf('%s:%s/incoming', $self->destination, $self->{destination}->path),
+    @verbose,
   });
+
+  warn '--- ', join(' ', @{ $rsync->getcmd }), "\n";
+  $rsync;
 }
 
 sub remote_cleanup {
@@ -202,6 +217,7 @@ sub _read {
 sub run {
   my $self = shift;
   my $action = shift || 'help';
+  my $rsync;
 
   $self->{config} ||= "$HOME/.sibs.conf";
 
@@ -213,9 +229,8 @@ sub run {
     $self->create_identity_file;
   }
   elsif($action eq 'backup') {
-    my $reader = sub { local $| = 1; print $_[0] };
-    $self->load_config;
-    $self->rsync->exec(outfun => $reader, errfun => $reader) or die $self->rsync->err;
+    my $rsync = $self->rsync;
+    $rsync->exec or die "--- rsync failed: ", @{ $rsync->err || $rsync->out };
     $self->remote_cleanup;
   }
   elsif($action eq 'man') {
