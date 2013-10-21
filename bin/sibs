@@ -4,7 +4,7 @@ use warnings;
 use Fcntl ':flock';
 use URI;
 
-our @DEFAULT_EXCLUDE = qw( .cache .gvfs Downloads Dropbox Trash );
+our @DEFAULT_EXCLUDE = qw( .cache .cpanm .gvfs Downloads Dropbox Trash );
 our $HOME = $ENV{HOME} || 'ENVIRONMENT_HOME_IS_NOT_SET';
 
 #=============================================================================
