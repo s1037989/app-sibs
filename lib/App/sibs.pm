@@ -6,18 +6,54 @@ App::sibs - Simple incremental backup system
 
 =head1 VERSION
 
-0.01
-
-=head1 SYNOPSIS
-
-  $ sibs
-  $ sibs setup
-  $ sibs run
+0.10
 
 =head1 DESCRIPTION
 
-C<sibs> create backups from your computer to a destination server, using
+C<sibs> create backup from your computer to a destination server, using
 C<rsync>.
+
+=over 4
+
+=item * Setup
+
+First you need to C<setup> sibs. The setup process will create a SSH key
+which is uploaded to the C<destination> server. The key is created using
+C<ssh-keygen> and uploaded using C<ssh> and C<perl>.
+
+In addition, this step will create or update a config file. The default
+config file is L<$HOME/.sibs.conf>, but you can also specify your own path.
+
+=item * Backup
+
+The second step will create the actual backup. This step can be automated
+in a cronjob, because the key created in the first step will not require
+any password to log into the remote backup server. Example crontab:
+
+  0 */4 * * * /usr/local/bin/sibs backup 2>/dev/null 1>/dev/null
+
+This will create a backup every four hours. The backup will be "full" each
+time and kept for a month. Even so, it probably won't take up too much space,
+since all the files are hard linked, meaning an unchanged file will take up
+the same disk space for each backup.
+
+=back
+
+=head1 SYNOPSIS
+
+  $ sibs <action> <options> <config file>
+  $ sibs setup
+  $ sibs backup
+
+=over 4
+
+=item * action: setup, backup, man 
+
+=item * options: --verbose, --silent
+
+=item * config file: Path to L</CONFIG FILE>.
+
+=back
 
 =head1 CONFIG FILE
 
@@ -46,7 +82,7 @@ Default C<exclude> may change in future release.
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.10';
 
 =head1 COPYRIGHT
 

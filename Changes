@@ -1,4 +1,6 @@
 Revision history for App-sibs
 
-0.01
-       * Started project
+0.10
+       * Can create ssh key
+       * Can create config file
+       * Can run backup
