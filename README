@@ -2,16 +2,66 @@ NAME
     App::sibs - Simple incremental backup system
 
 VERSION
-    0.01
-
-SYNOPSIS
-      $ sibs;
-      $ sibs setup;
-      $ sibs run;
+    0.10
 
 DESCRIPTION
-    "sibs" create backups from your source system to a destination server,
-    using "rsync".
+    "sibs" create backup from your computer to a destination server, using
+    "rsync".
+
+    *   Setup
+
+        First you need to "setup" sibs. The setup process will create a SSH
+        key which is uploaded to the "destination" server. The key is
+        created using "ssh-keygen" and uploaded using "ssh" and "perl".
+
+        In addition, this step will create or update a config file. The
+        default config file is ".sibs.conf" in $HOME, but you can also
+        specify your own path.
+
+    *   Backup
+
+        The second step will create the actual backup. This step can be
+        automated in a cronjob, because the key created in the first step
+        will not require any password to log into the remote backup server.
+        Example crontab:
+
+          0 */4 * * * /usr/local/bin/sibs backup 2>/dev/null 1>/dev/null
+
+        This will create a backup every four hours. The backup will be
+        "full" each time and kept for a month. Even so, it probably won't
+        take up too much space, since all the files are hard linked, meaning
+        an unchanged file will take up the same disk space for each backup.
+
+SYNOPSIS
+      $ sibs <action> <options> <config file>
+      $ sibs setup
+      $ sibs backup
+
+    *   action: setup, backup, man
+
+    *   options: --verbose, --silent
+
+    *   config file: Path to "CONFIG FILE".
+
+CONFIG FILE
+    The config file is in perl format, and read by perl. This means that any
+    perl code that exists in the file will be evaluated by perl. The return
+    value need to be a hash with the config. Example:
+
+      {
+        email => "your@email.com",
+        exclude => [qw( .cache .gvfs Downloads Dropbox Trash )],
+        source => [qw( /home/username )],
+        destination => "rsync://login-username@my.server.com/var/backup/username",
+      }
+
+    Defaults:
+
+    *   exclude: .cache, .gvfs, Downloads, Dropbox, Trash
+
+    *   source: $HOME
+
+    Default "exclude" may change in future release.
 
 COPYRIGHT
     This program is free software, you can redistribute it and/or modify it
