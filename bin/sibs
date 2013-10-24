@@ -6,6 +6,8 @@ use URI;
 
 our @DEFAULT_EXCLUDE = qw( .cache .cpanm .gvfs Downloads Dropbox Trash );
 our $HOME = $ENV{HOME} || 'ENVIRONMENT_HOME_IS_NOT_SET';
+our $SSH = 'ssh';
+our $SSH_KEYGEN = 'ssh-keygen';
 our $LOCK;
 
 END {
@@ -79,7 +81,7 @@ sub create_identity_file {
   }
   else {
     $self->_log("Creating $file with empty password using ssh-keygen ...");
-    $self->_system('ssh-keygen' => -P => '', -t => 'dsa', -f => $file);
+    $self->_system($SSH_KEYGEN => -P => '', -t => 'dsa', -f => $file);
   }
 
   $self->_log("Copying pub key to remote host ...");
@@ -148,7 +150,7 @@ sub load_config {
 sub run_sibs_remote {
   my($self, @args) = @_;
   my $stdin = ref $args[0] eq 'CODE' ? shift @args : sub { '' };
-  my @remote = ( ssh => sprintf('%s@%s', $self->{destination}->userinfo, $self->remote_host) );
+  my @remote = ( $SSH => '-l' => $self->{destination}->userinfo, $self->remote_host );
 
   unshift @args, '--silent' if $self->{silent};
   unshift @args, '--verbose' if $self->{verbose};
@@ -164,8 +166,15 @@ sub run_sibs_remote {
 
 sub ssh_file {
   my($self, $file) = @_;
-  return "$HOME/.ssh" unless $file;
-  return "$HOME/.ssh/$file";
+
+  if(!$self->{ssh_dir} and !-d "$HOME/.ssh") {
+    mkdir "$HOME/.ssh" or die "Could not mkdir ~/.ssh: $!" unless -d "$HOME/.ssh";
+    chmod 0700, "$HOME/.ssh";
+    $self->{ssh_dir} = "$HOME/.ssh";
+  }
+
+  return $self->{ssh_dir} unless $file;
+  return join '/', $self->{ssh_dir}, $file;
 }
 
 sub _log {
@@ -199,7 +208,7 @@ sub _system {
     last;
   }
 
-  $self->_log("$program @options");
+  $self->_log(join ' ', map { length $_ ? $_ : '""' } $program, @options);
   system $program => @options;
 }
 
@@ -209,9 +218,9 @@ sub run {
   my $i = 0;
 
   while($i < @args) {
-    $self->{config} = splice @args, $i, 1, () if -f $args[$i];
-    $self->{verbose} = splice @args, $i, 1, () if $args[$i] =~ /^-?-v/;
-    $self->{silent} = splice @args, $i, 1, () if $args[$i] =~ /^-?-s/;
+    $self->{config} = splice @args, $i, 1, () and next if -f $args[$i];
+    $self->{verbose} = splice @args, $i, 1, () and next if $args[$i] =~ /^--?v/;
+    $self->{silent} = splice @args, $i, 1, () and next if $args[$i] =~ /^--?s/;
     $i++;
   }
 
@@ -221,8 +230,6 @@ sub run {
   if($action eq 'setup') {
     $self->create_sibs_config until eval { $self->load_config };
     $self->_log("Created $self->{config}");
-    mkdir $self->ssh_file or die "Could not mkdir ~/.ssh: $!" unless -d $self->ssh_file;
-    chmod 0700, $self->ssh_file;
     $self->add_backup_host_to_ssh_config;
     $self->create_identity_file;
   }
@@ -244,7 +251,7 @@ sub run {
     chdir $dir or die "Cannot chdir $dir: $!\n";
     $self->_system(cp => "-al" => "incoming" => "$mday-$hour");
   }
-  else {
+  elsif(!$ENV{HARNESS_IS_VERBOSE}) {
     print <<'    HELP';
     sibs man
     sibs setup

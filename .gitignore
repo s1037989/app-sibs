@@ -10,4 +10,5 @@
 *.old
 *.swp
 ~$
+/t/config.sibs
 /App-sibs*tar.gz

@@ -8,3 +8,6 @@
 ^MANIFEST.*
 ^App-sibs
 ^MYMETA*
+^t/config.sibs
+^t/home/*
+^t/bin/*
