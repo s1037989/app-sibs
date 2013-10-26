@@ -168,7 +168,7 @@ sub run_sibs_remote {
 sub ssh_file {
   my($self, $file) = @_;
 
-  if(!$self->{ssh_dir} and !-d "$ENV{HOME}/.ssh") {
+  if(!$self->{ssh_dir}) {
     mkdir "$ENV{HOME}/.ssh" or die "Could not mkdir $ENV{HOME}/.ssh: $!" unless -d "$ENV{HOME}/.ssh";
     chmod 0700, "$ENV{HOME}/.ssh";
     $self->{ssh_dir} = "$ENV{HOME}/.ssh";
