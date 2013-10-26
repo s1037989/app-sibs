@@ -9,6 +9,7 @@ my $script = do 'bin/sibs';
 
 {
   $script->{silent} = !$ENV{HARNESS_IS_VERBOSE};
+  $script->{config} = 't/config.sibs';
   remove_tree 't/home/.ssh' if -d 't/home/.ssh';
   unlink $script->{config} if -r $script->{config};
 }
@@ -28,7 +29,6 @@ my $script = do 'bin/sibs';
 
   no warnings 'redefine';
   local *main::_read = sub { $_ = shift @read };
-  $script->{config} = 't/config.sibs';
 
   $script->create_sibs_config;
   $script->load_config;

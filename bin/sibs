@@ -5,10 +5,11 @@ use Fcntl qw( O_CREAT O_EXCL );
 use URI;
 
 our @DEFAULT_EXCLUDE = qw( .cache .cpanm .gvfs Downloads Dropbox Trash );
-our $HOME = $ENV{HOME} || 'ENVIRONMENT_HOME_IS_NOT_SET';
 our $SSH = 'ssh';
 our $SSH_KEYGEN = 'ssh-keygen';
 our $LOCK;
+
+$ENV{HOME} ||= 'ENVIRONMENT_HOME_IS_NOT_SET';
 
 END {
   unlink $LOCK if $LOCK;
@@ -134,7 +135,7 @@ sub load_config {
 
   $config or die "Invalid config file: ($@)\n";
   $config->{exclude} ||= [ @DEFAULT_EXCLUDE ];
-  $config->{source} ||= [ $HOME ];
+  $config->{source} ||= [ $ENV{HOME} ];
   $config->{destination} = URI->new($config->{destination} || '');
 
   @{$self}{keys %$config} = values %$config;
@@ -167,10 +168,10 @@ sub run_sibs_remote {
 sub ssh_file {
   my($self, $file) = @_;
 
-  if(!$self->{ssh_dir} and !-d "$HOME/.ssh") {
-    mkdir "$HOME/.ssh" or die "Could not mkdir ~/.ssh: $!" unless -d "$HOME/.ssh";
-    chmod 0700, "$HOME/.ssh";
-    $self->{ssh_dir} = "$HOME/.ssh";
+  if(!$self->{ssh_dir} and !-d "$ENV{HOME}/.ssh") {
+    mkdir "$ENV{HOME}/.ssh" or die "Could not mkdir $ENV{HOME}/.ssh: $!" unless -d "$ENV{HOME}/.ssh";
+    chmod 0700, "$ENV{HOME}/.ssh";
+    $self->{ssh_dir} = "$ENV{HOME}/.ssh";
   }
 
   return $self->{ssh_dir} unless $file;
@@ -225,7 +226,7 @@ sub run {
   }
 
   $action = shift @args if @args;
-  $self->{config} ||= "$HOME/.sibs.conf";
+  $self->{config} ||= "$ENV{HOME}/.sibs.conf";
 
   if($action eq 'setup') {
     $self->create_sibs_config until eval { $self->load_config };

@@ -1,5 +1,5 @@
 ^mypp.yml
-.git
+^.git
 \.old
 \.swp
 ~$
@@ -9,5 +9,6 @@
 ^App-sibs
 ^MYMETA*
 ^t/config.sibs
-^t/home/*
-^t/bin/*
+^t/home/.ssh
+^t/bin/ssh*
+^App-sibs-*

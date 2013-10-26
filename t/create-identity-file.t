@@ -10,12 +10,11 @@ my $script = do 'bin/sibs';
 {
   $script->{silent} = !$ENV{HARNESS_IS_VERBOSE};
   remove_tree 't/home/.ssh' if -d 't/home/.ssh';
-  unlink $script->{config} if -r $script->{config};
 }
 
 {
   $main::SSH_KEYGEN = 't/bin/ssh-keygen';
-  open my $SSH_KEYGEN, '>', $main::SSH_KEYGEN;
+  open my $SSH_KEYGEN, '>', $main::SSH_KEYGEN or die $!;
   print $SSH_KEYGEN "#!$^X\n";
   print $SSH_KEYGEN "open my \$FH, '>', pop(\@ARGV) .'.pub';\n";
   print $SSH_KEYGEN "print \$FH join ',', \@ARGV;\n";
@@ -25,7 +24,7 @@ my $script = do 'bin/sibs';
 
 {
   $main::SSH = 't/bin/ssh';
-  open my $SSH, '>', $main::SSH;
+  open my $SSH, '>', $main::SSH or die $!;
   print $SSH "#!$^X\n";
   print $SSH "open my \$FH, '>', 't/bin/ssh.out';\n";
   print $SSH "print \$FH \$_ while <STDIN>;\n";
