@@ -1,5 +1,8 @@
 Revision history for App-sibs
 
+0.13     Thu Oct 31 20:09:36 2013
+       * Fix missing dep: URI
+
 0.12     Sat Oct 26 16:39:04 2013
        * Fix ssh_dir initialization
 
