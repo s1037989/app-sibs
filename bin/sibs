@@ -253,6 +253,7 @@ sub run {
   elsif($action eq 'remote-archive') {
     my($dir, $name) = @args;
     chdir $dir or die "Cannot chdir $dir: $!\n";
+    $self->_system(rm => -r => $name) if -d $name;
     $self->_system(cp => "-al" => "incoming" => $name);
   }
   elsif(!$ENV{HARNESS_IS_VERBOSE}) {
