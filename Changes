@@ -1,5 +1,9 @@
 Revision history for App-sibs
 
+0.14
+       * Add support for custom backup directory name.
+         Example: $(sibs --format %H:%M:%S)
+
 0.13     Thu Oct 31 20:09:36 2013
        * Fix missing dep: URI
 

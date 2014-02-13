@@ -2,6 +2,7 @@
 use strict;
 use warnings;
 use Fcntl qw( O_CREAT O_EXCL );
+use POSIX ();
 use URI;
 
 our @DEFAULT_EXCLUDE = qw( .cache .cpanm .gvfs Downloads Dropbox Trash );
@@ -178,6 +179,10 @@ sub ssh_file {
   return join '/', $self->{ssh_dir}, $file;
 }
 
+sub _backup_name {
+  POSIX::strftime($_[0]->{format} || '%d-%H', localtime);
+}
+
 sub _log {
   my $self = shift;
   my $min = (localtime)[1];
@@ -237,7 +242,7 @@ sub run {
   elsif($action eq 'backup') {
     $self->load_config;
     $self->run_rsync;
-    $self->run_sibs_remote('remote-archive', $self->{destination}->path);
+    $self->run_sibs_remote('remote-archive', $self->{destination}->path, $self->_backup_name);
   }
   elsif($action eq 'man') {
     exec perldoc => 'App::sibs';
@@ -246,11 +251,9 @@ sub run {
     $self->remote_add_pub_key(eval 'do { local $/; <DATA> }');
   }
   elsif($action eq 'remote-archive') {
-    my $dir = shift @args;
-    my $hour = (localtime)[2];
-    my $mday = (localtime)[3];
+    my($dir, $name) = @args;
     chdir $dir or die "Cannot chdir $dir: $!\n";
-    $self->_system(cp => "-al" => "incoming" => "$mday-$hour");
+    $self->_system(cp => "-al" => "incoming" => $name);
   }
   elsif(!$ENV{HARNESS_IS_VERBOSE}) {
     print <<'    HELP';

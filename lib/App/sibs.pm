@@ -47,9 +47,21 @@ the same disk space for each backup.
 
 =over 4
 
-=item * action: setup, backup, man 
+=item * action: setup
+
+Used to L<set up|/Setup> the inital config file.
+
+=item * action: backup
+
+Used to take L<backup|/Backup>.
+
+=item * action: man
+
+Used to see this help text.
 
 =item * options: --verbose, --silent
+
+Adjust log level.
 
 =item * config file: Path to L</CONFIG FILE>.
 
@@ -62,7 +74,7 @@ code that exists in the file will be evaluated by perl. The return value need
 to be a hash with the config. Example:
 
   {
-    email => "your@email.com",
+    format => '%d-%H', # default
     exclude => [qw( .cache .gvfs Downloads Dropbox Trash )],
     source => [qw( /home/username )],
     destination => "rsync://login-username@my.server.com/var/backup/username",
@@ -72,9 +84,18 @@ Defaults:
 
 =over 4
 
+=item * format: %d-%H
+
+The "format" will name the destination folder. See L<POSIX::strftime::GNU/FORMAT>
+for details.
+
 =item * exclude: .cache, .gvfs, Downloads, Dropbox, Trash
 
+Which files/directories to exclude.
+
 =item * source: C<$HOME>
+
+Which directory to backup.
 
 =back
 

@@ -5,7 +5,7 @@ use File::Path qw( remove_tree );
 plan skip_all => 'Cannot read bin/sibs' unless -x 'bin/sibs';
 
 $ENV{HOME} = 't/home';
-my $script = do 'bin/sibs';
+my $script = do 'bin/sibs' or die $@;
 
 {
   $script->{silent} = !$ENV{HARNESS_IS_VERBOSE};
