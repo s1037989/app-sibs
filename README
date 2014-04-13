@@ -2,7 +2,7 @@ NAME
     App::sibs - Simple incremental backup system
 
 VERSION
-    0.13
+    0.14
 
 DESCRIPTION
     "sibs" create backup from your computer to a destination server, using
@@ -37,9 +37,21 @@ SYNOPSIS
       $ sibs setup
       $ sibs backup
 
-    *   action: setup, backup, man
+    *   action: setup
+
+        Used to set up the inital config file.
+
+    *   action: backup
+
+        Used to take backup.
+
+    *   action: man
+
+        Used to see this help text.
 
     *   options: --verbose, --silent
+
+        Adjust log level.
 
     *   config file: Path to "CONFIG FILE".
 
@@ -49,7 +61,7 @@ CONFIG FILE
     value need to be a hash with the config. Example:
 
       {
-        email => "your@email.com",
+        format => '%d-%H', # default
         exclude => [qw( .cache .gvfs Downloads Dropbox Trash )],
         source => [qw( /home/username )],
         destination => "rsync://login-username@my.server.com/var/backup/username",
@@ -57,9 +69,18 @@ CONFIG FILE
 
     Defaults:
 
+    *   format: %d-%H
+
+        The "format" will name the destination folder. See "FORMAT" in
+        POSIX::strftime::GNU for details.
+
     *   exclude: .cache, .gvfs, Downloads, Dropbox, Trash
 
+        Which files/directories to exclude.
+
     *   source: $HOME
+
+        Which directory to backup.
 
     Default "exclude" may change in future release.
 

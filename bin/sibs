@@ -255,6 +255,7 @@ sub run {
     chdir $dir or die "Cannot chdir $dir: $!\n";
     $self->_system(rm => -r => $name) if -d $name;
     $self->_system(cp => "-al" => "incoming" => $name);
+    $self->_system(touch => $name);
   }
   elsif(!$ENV{HARNESS_IS_VERBOSE}) {
     print <<'    HELP';
