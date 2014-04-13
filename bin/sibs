@@ -257,11 +257,16 @@ sub run {
     $self->_system(cp => "-al" => "incoming" => $name);
     $self->_system(touch => $name);
   }
+  elsif($action eq 'version') {
+    require App::sibs;
+    print App::sibs->VERSION, "\n";
+  }
   elsif(!$ENV{HARNESS_IS_VERBOSE}) {
     print <<'    HELP';
     sibs man
     sibs setup
     sibs backup
+    sibs version
     HELP
   }
 

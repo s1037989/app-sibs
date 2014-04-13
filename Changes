@@ -1,5 +1,8 @@
 Revision history for App-sibs
 
+0.15     Sun Apr 13 18:07:28 2014
+       * Add "version" action
+
 0.14     Sun Apr 13 18:04:32 2014
        * Will touch backup directory afterwards for correct timestamp.
        * Will remove destination directory to avoid old junk
