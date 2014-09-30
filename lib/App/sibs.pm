@@ -6,7 +6,7 @@ App::sibs - Simple incremental backup system
 
 =head1 VERSION
 
-0.15
+0.16
 
 =head1 DESCRIPTION
 
@@ -103,7 +103,7 @@ Default C<exclude> may change in future release.
 
 =cut
 
-our $VERSION = '0.15';
+our $VERSION = '0.16';
 
 =head1 COPYRIGHT
 

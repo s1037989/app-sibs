@@ -2,7 +2,7 @@ NAME
     App::sibs - Simple incremental backup system
 
 VERSION
-    0.15
+    0.16
 
 DESCRIPTION
     "sibs" create backup from your computer to a destination server, using
