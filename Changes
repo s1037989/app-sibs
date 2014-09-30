@@ -1,5 +1,8 @@
 Revision history for App-sibs
 
+0.16
+       * Made ssh-keygen a lot safer
+
 0.15     Sun Apr 13 18:07:28 2014
        * Add "version" action
 

@@ -37,13 +37,13 @@ my $script = do 'bin/sibs' or die $@;
   $script->{destination} = URI->new('rsync://bruce@localhost');
   $script->create_identity_file;
   open my $FH, '<', 't/home/.ssh/sibs_dsa.pub';
-  is readline($FH), "-P,,-t,dsa,-f\n", 'ran ssk-keygen';
+  is readline($FH), "-q,-b,4096,-t,rsa,-N,,-f\n", 'ran ssk-keygen';
 }
 
 {
   open my $FH, '<', 't/bin/ssh.out';
   while(<$FH>) { /^__DATA__/ and last }
-  is readline($FH) || '', "-P,,-t,dsa,-f\n", 'ran ssh with data';
+  is readline($FH) || '', "-q,-b,4096,-t,rsa,-N,,-f\n", 'ran ssk with data';
   my $expected = "-l,bruce,sibs-localhost,perl - remote-init\n";
   $expected =~ s/ - / - --silent / unless $ENV{HARNESS_IS_VERBOSE};
   is readline($FH) || '', $expected, 'ran ssh with options';

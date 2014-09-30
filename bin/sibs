@@ -83,7 +83,7 @@ sub create_identity_file {
   }
   else {
     $self->_log("Creating $file with empty password using ssh-keygen ...");
-    $self->_system($SSH_KEYGEN => -P => '', -t => 'dsa', -f => $file);
+    $self->_system($SSH_KEYGEN => qw( -q -b 4096 -t rsa ), -N => '', -f => $file);
   }
 
   $self->_log("Copying pub key to remote host ...");
