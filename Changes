@@ -1,5 +1,8 @@
 Revision history for perl distribution App-sibs
 
+0.17 Not Released
+ - Add support for running backup locally
+
 0.16 2014-09-30T22:19:43Z
  - Made ssh-keygen a lot safer
 

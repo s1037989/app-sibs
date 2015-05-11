@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 use strict;
 use warnings;
 use Fcntl qw( O_CREAT O_EXCL );
@@ -25,7 +25,13 @@ sub run_rsync {
   push @options, map {qq(--exclude=$_)} @{$self->{exclude} || []};
   push @options, '--verbose' if $self->{verbose};
   push @options, @{$self->{source}};
-  push @options, sprintf '%s@%s:%s/incoming', $uri->userinfo, $self->remote_host, $uri->path;
+
+  if (my $remote_host = $self->remote_host) {
+    push @options, sprintf '%s@%s:%s/incoming', $uri->userinfo, $remote_host, $uri->path;
+  }
+  else {
+    push @options, sprintf '%s/incoming', $uri->path;
+  }
 
   IO::File->new->open($lock, O_CREAT | O_EXCL) or die "Already backing up. ($lock)\n";
   $LOCK = $lock;
@@ -115,7 +121,8 @@ sub remote_add_pub_key {
 
 sub remote_host {
   my $self    = shift;
-  my $moniker = 'sibs-' . $self->{destination}->host;
+  my $host    = $self->{destination}->host or return '';
+  my $moniker = "sibs-$host";
 
   $moniker =~ s/\./-/g;
   $moniker;
@@ -141,7 +148,7 @@ sub load_config {
 
   @{$self}{keys %$config} = values %$config;
 
-  for my $m (qw( scheme host path userinfo )) {
+  for my $m (qw( scheme path )) {
     next if $config->{destination}->$m;
     die "[$self->{config}] Missing '$m' part for 'destination' URI\n";
   }
@@ -153,13 +160,17 @@ sub load_config {
 sub run_sibs_remote {
   my ($self, @args) = @_;
   my $stdin = ref $args[0] eq 'CODE' ? shift @args : sub {''};
-  my @remote = ($SSH => '-l' => $self->{destination}->userinfo, $self->remote_host);
+  my @cmd;
+
+  if (my $remote_host = $self->remote_host) {
+    @cmd = ($SSH => '-l' => $self->{destination}->userinfo, $remote_host);
+  }
 
   unshift @args, '--silent'  if $self->{silent};
   unshift @args, '--verbose' if $self->{verbose};
-  push @remote, qq(perl - @args);
+  push @cmd, qq(perl - @args);
 
-  open my $SSH,  '|-', @remote  or die "Cannot start 'sibs @args' remote: $!";
+  open my $SSH,  '|-', @cmd     or die "Cannot start 'sibs @args' remote: $!";
   open my $SELF, '<',  __FILE__ or die "Cannot read $0: $!";
   print $SSH $_ while <$SELF>;
   print $SSH "\n__DATA__\n";
