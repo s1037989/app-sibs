@@ -6,8 +6,8 @@ use POSIX ();
 use URI;
 
 our @DEFAULT_EXCLUDE = qw( .cache .cpanm .gvfs Downloads Dropbox Trash );
-our $SSH = 'ssh';
-our $SSH_KEYGEN = 'ssh-keygen';
+our $SSH             = 'ssh';
+our $SSH_KEYGEN      = 'ssh-keygen';
 our $LOCK;
 
 $ENV{HOME} ||= 'ENVIRONMENT_HOME_IS_NOT_SET';
@@ -17,14 +17,14 @@ END {
 }
 
 sub run_rsync {
-  my $self = shift;
-  my $uri = $self->{destination};
-  my $lock = sprintf '%s.backup.lock', $self->{config};
+  my $self    = shift;
+  my $uri     = $self->{destination};
+  my $lock    = sprintf '%s.backup.lock', $self->{config};
   my @options = qw( -az --delete-after --numeric-ids --relative );
 
-  push @options, map { qq(--exclude=$_) } @{ $self->{exclude} || [] };
+  push @options, map {qq(--exclude=$_)} @{$self->{exclude} || []};
   push @options, '--verbose' if $self->{verbose};
-  push @options, @{ $self->{source} };
+  push @options, @{$self->{source}};
   push @options, sprintf '%s@%s:%s/incoming', $uri->userinfo, $self->remote_host, $uri->path;
 
   IO::File->new->open($lock, O_CREAT | O_EXCL) or die "Already backing up. ($lock)\n";
@@ -41,10 +41,10 @@ sub create_sibs_config {
   $self->_log($@ || "Creating '$self->{config}' from user input...");
 
   print $CONFIG "{\n";
-  printf $CONFIG "  email => '%s',\n", $_ if $self->_read('email');
+  printf $CONFIG "  email => '%s',\n",         $_ if $self->_read('email');
   printf $CONFIG "  exclude => [qw( %s )],\n", $_ if $self->_read('exclude');
-  printf $CONFIG "  source => [qw( %s )],\n", $_ if $self->_read('source');
-  printf $CONFIG "  destination => '%s',\n", $_ if $self->_read('destination');
+  printf $CONFIG "  source => [qw( %s )],\n",  $_ if $self->_read('source');
+  printf $CONFIG "  destination => '%s',\n",   $_ if $self->_read('destination');
   print $CONFIG "}\n";
 
   close $CONFIG or die "Could not write '$tmp': $!\n";
@@ -52,13 +52,13 @@ sub create_sibs_config {
 }
 
 sub add_backup_host_to_ssh_config {
-  my $self = shift;
+  my $self    = shift;
   my $moniker = $self->remote_host;
-  my $file = $self->ssh_file('config');
+  my $file    = $self->ssh_file('config');
 
-  if(-r $file) {
+  if (-r $file) {
     open my $CONFIG, '<', $file or die "Could not open $file: $!";
-    while(<$CONFIG>) {
+    while (<$CONFIG>) {
       next unless /Host\s+$moniker/;
       $self->_log("Host $moniker exists in $file.");
       return 1;
@@ -67,8 +67,8 @@ sub add_backup_host_to_ssh_config {
 
   $self->_log("Adding $moniker to $file");
   open my $CONFIG, '>>', $file or die "Cannot write to $file: $!";
-  printf $CONFIG "\nHost %s\n", $self->remote_host;
-  printf $CONFIG "  Hostname %s\n", $self->{destination}->host;
+  printf $CONFIG "\nHost %s\n",         $self->remote_host;
+  printf $CONFIG "  Hostname %s\n",     $self->{destination}->host;
   printf $CONFIG "  IdentityFile %s\n", $self->ssh_file('sibs_dsa');
   close $CONFIG;
 }
@@ -78,7 +78,7 @@ sub create_identity_file {
   my $file = $self->ssh_file('sibs_dsa');
   my $identity;
 
-  if(-r $file) {
+  if (-r $file) {
     $self->_log("Identity file '$file' exists");
   }
   else {
@@ -92,13 +92,13 @@ sub create_identity_file {
 }
 
 sub remote_add_pub_key {
-  my($self, $key) = @_;
+  my ($self, $key) = @_;
   my $file = $self->ssh_file('authorized_keys');
 
-  if(-r $file) {
+  if (-r $file) {
     my $match = quotemeta $key;
     open my $AUTHORIZED_KEYS, '<', $file or die "Could not open $file: $!";
-    while(<$AUTHORIZED_KEYS>) {
+    while (<$AUTHORIZED_KEYS>) {
       next unless /$match/;
       $self->_log("Remote host has pub key");
       return 0;
@@ -114,8 +114,8 @@ sub remote_add_pub_key {
 }
 
 sub remote_host {
-  my $self = shift;
-  my $moniker = 'sibs-' .$self->{destination}->host;
+  my $self    = shift;
+  my $moniker = 'sibs-' . $self->{destination}->host;
 
   $moniker =~ s/\./-/g;
   $moniker;
@@ -135,8 +135,8 @@ sub load_config {
   CONFIG
 
   $config or die "Invalid config file: ($@)\n";
-  $config->{exclude} ||= [ @DEFAULT_EXCLUDE ];
-  $config->{source} ||= [ $ENV{HOME} ];
+  $config->{exclude} ||= [@DEFAULT_EXCLUDE];
+  $config->{source}  ||= [$ENV{HOME}];
   $config->{destination} = URI->new($config->{destination} || '');
 
   @{$self}{keys %$config} = values %$config;
@@ -146,30 +146,31 @@ sub load_config {
     die "[$self->{config}] Missing '$m' part for 'destination' URI\n";
   }
 
-  $config->{destination}->scheme eq 'rsync' or die "[$self->{config}] Only rsync:// is supported for 'destination' URI\n";
+  $config->{destination}->scheme eq 'rsync'
+    or die "[$self->{config}] Only rsync:// is supported for 'destination' URI\n";
 }
 
 sub run_sibs_remote {
-  my($self, @args) = @_;
-  my $stdin = ref $args[0] eq 'CODE' ? shift @args : sub { '' };
-  my @remote = ( $SSH => '-l' => $self->{destination}->userinfo, $self->remote_host );
+  my ($self, @args) = @_;
+  my $stdin = ref $args[0] eq 'CODE' ? shift @args : sub {''};
+  my @remote = ($SSH => '-l' => $self->{destination}->userinfo, $self->remote_host);
 
-  unshift @args, '--silent' if $self->{silent};
+  unshift @args, '--silent'  if $self->{silent};
   unshift @args, '--verbose' if $self->{verbose};
   push @remote, qq(perl - @args);
 
-  open my $SSH, '|-', @remote or die "Cannot start 'sibs @args' remote: $!";
-  open my $SELF, '<', __FILE__ or die "Cannot read $0: $!";
+  open my $SSH,  '|-', @remote  or die "Cannot start 'sibs @args' remote: $!";
+  open my $SELF, '<',  __FILE__ or die "Cannot read $0: $!";
   print $SSH $_ while <$SELF>;
   print $SSH "\n__DATA__\n";
   print $SSH $self->$stdin;
-  close $SSH; # TODO: do i need to wait?
+  close $SSH;    # TODO: do i need to wait?
 }
 
 sub ssh_file {
-  my($self, $file) = @_;
+  my ($self, $file) = @_;
 
-  if(!$self->{ssh_dir}) {
+  if (!$self->{ssh_dir}) {
     mkdir "$ENV{HOME}/.ssh" or die "Could not mkdir $ENV{HOME}/.ssh: $!" unless -d "$ENV{HOME}/.ssh";
     chmod 0700, "$ENV{HOME}/.ssh";
     $self->{ssh_dir} = "$ENV{HOME}/.ssh";
@@ -185,7 +186,7 @@ sub _backup_name {
 
 sub _log {
   my $self = shift;
-  my $min = (localtime)[1];
+  my $min  = (localtime)[1];
   my $hour = (localtime)[2];
 
   return if $self->{silent};
@@ -193,7 +194,7 @@ sub _log {
 }
 
 sub _read {
-  my($self, $k) = @_;
+  my ($self, $k) = @_;
   my $v = $self->{$k};
   $v = join ' ', @$v if ref $v eq 'ARRAY';
   local $| = 1;
@@ -206,7 +207,7 @@ sub _read {
 }
 
 sub _system {
-  my($self, $program, @options) = @_;
+  my ($self, $program, @options) = @_;
 
   for my $path (qw( /bin /usr/bin /usr/local/bin )) {
     next unless -x "$path/$program";
@@ -219,49 +220,49 @@ sub _system {
 }
 
 sub run {
-  my($self, @args) = @_;
+  my ($self, @args) = @_;
   my $action = 'help';
-  my $i = 0;
+  my $i      = 0;
 
-  while($i < @args) {
-    $self->{config} = splice @args, $i, 1, () and next if -f $args[$i];
+  while ($i < @args) {
+    $self->{config}  = splice @args, $i, 1, () and next if -f $args[$i];
     $self->{verbose} = splice @args, $i, 1, () and next if $args[$i] =~ /^--?v/;
-    $self->{silent} = splice @args, $i, 1, () and next if $args[$i] =~ /^--?s/;
+    $self->{silent}  = splice @args, $i, 1, () and next if $args[$i] =~ /^--?s/;
     $i++;
   }
 
   $action = shift @args if @args;
   $self->{config} ||= "$ENV{HOME}/.sibs.conf";
 
-  if($action eq 'setup') {
+  if ($action eq 'setup') {
     $self->create_sibs_config until eval { $self->load_config };
     $self->_log("Created $self->{config}");
     $self->add_backup_host_to_ssh_config;
     $self->create_identity_file;
   }
-  elsif($action eq 'backup') {
+  elsif ($action eq 'backup') {
     $self->load_config;
     $self->run_rsync;
     $self->run_sibs_remote('remote-archive', $self->{destination}->path, $self->_backup_name);
   }
-  elsif($action eq 'man') {
+  elsif ($action eq 'man') {
     exec perldoc => 'App::sibs';
   }
-  elsif($action eq 'remote-init') {
+  elsif ($action eq 'remote-init') {
     $self->remote_add_pub_key(eval 'do { local $/; <DATA> }');
   }
-  elsif($action eq 'remote-archive') {
-    my($dir, $name) = @args;
+  elsif ($action eq 'remote-archive') {
+    my ($dir, $name) = @args;
     chdir $dir or die "Cannot chdir $dir: $!\n";
     $self->_system(rm => -r => $name) if -d $name;
     $self->_system(cp => "-al" => "incoming" => $name);
     $self->_system(touch => $name);
   }
-  elsif($action eq 'version') {
+  elsif ($action eq 'version') {
     require App::sibs;
     print App::sibs->VERSION, "\n";
   }
-  elsif(!$ENV{HARNESS_IS_VERBOSE}) {
+  elsif (!$ENV{HARNESS_IS_VERBOSE}) {
     print <<'    HELP';
     sibs man
     sibs setup
